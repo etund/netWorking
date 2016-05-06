@@ -2,7 +2,7 @@
 //  AIFApiProxy.h
 //  PywSdk
 //
-//  Created by yunyoufeitian on 16/1/20.
+//  Created by liangyidong on 16/1/20.
 //  Copyright © 2016年 zero. All rights reserved.
 //
 

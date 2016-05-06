@@ -2,14 +2,14 @@
 //  AIFRequestGenerator.m
 //  PywSdk
 //
-//  Created by yunyoufeitian on 16/1/20.
+//  Created by liangyidong on 16/1/20.
 //  Copyright © 2016年 zero. All rights reserved.
 //
 
 #import "AIFRequestGenerator.h"
 #import "AFNetworking.h"
-#import "AIFNetworkingConfiguration.h"
 #import "AIFService.h"
+#import "ApiClient.h"
 #import "AIFServiceFactory.h"
 #import "NSURLRequest+AIFNetworkingMethods.h"
 #import "AppUtil.h"
@@ -35,9 +35,9 @@
 #pragma mark - public methods 
 signleton_m(RequestGenerator)
 
-
-
-- (NSURLRequest *)generatePOSTRequestWithServiceIdentifier:(NSString *)serviceIdentifier requestParams:(NSDictionary *)requestParams methodName:(NSString *)methodName{
+- (NSURLRequest *)generatePOSTRequestWithServiceIdentifier:(NSString *)serviceIdentifier
+                                             requestParams:(NSDictionary *)requestParams
+                                                methodName:(NSString *)methodName{
     AIFService *service = [[AIFServiceFactory sharedServiceFactory] serviceWithIdentifier:serviceIdentifier];
     NSString *urlStr = [NSString stringWithFormat:@"%@%@",service.apiBaseUrl, methodName];
     
@@ -51,10 +51,7 @@ signleton_m(RequestGenerator)
     //    _manager.
     NSMutableDictionary * params = [NSMutableDictionary dictionary];
     params[@"param"] = paramData;
-//    NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:urlStr]];
-    
-    NSURLRequest *request = [self.httpRequestSerializer requestWithMethod:@"POST" URLString:urlStr parameters:params error:NULL];
-    request.requestParams = params;
+    NSMutableURLRequest *request = [self.httpRequestSerializer multipartFormRequestWithMethod:@"POST" URLString:urlStr parameters:params constructingBodyWithBlock:nil error:nil];
     return request;
 }
 

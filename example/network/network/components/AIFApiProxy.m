@@ -2,21 +2,19 @@
 //  AIFApiProxy.m
 //  PywSdk
 //
-//  Created by yunyoufeitian on 16/1/20.
+//  Created by liangyidong on 16/1/20.
 //  Copyright © 2016年 zero. All rights reserved.
 //
-
 #import "AIFApiProxy.h"
 #import "AFNetworking.h"
 #import "AIFRequestGenerator.h"
-
 
 @interface AIFApiProxy()
 
 @property (nonatomic, strong) NSMutableDictionary *dispatchTable;
 @property (nonatomic, strong) NSNumber *recordedRequestId;
 
-@property (nonatomic, strong) AFHTTPRequestOperationManager *operationManager;
+@property (nonatomic, strong) AFHTTPSessionManager *sessionManager;
 
 @end
 
@@ -30,14 +28,12 @@
     return _dispatchTable;
 }
 
-- (AFHTTPRequestOperationManager *)operationManager{
-    if (_operationManager == nil) {
-        _operationManager = [[AFHTTPRequestOperationManager alloc] init];
-        _operationManager.responseSerializer = [AFHTTPResponseSerializer serializer];
-         NSStringEncoding enc = CFStringConvertEncodingToNSStringEncoding(kCFStringEncodingISOLatin1);
-        _operationManager.requestSerializer.stringEncoding = enc;
+- (AFHTTPSessionManager *)sessionManager{
+    if (!_sessionManager) {
+        _sessionManager = [AFHTTPSessionManager manager];
+        _sessionManager.responseSerializer = [AFHTTPResponseSerializer serializer];
     }
-    return _operationManager;
+    return _sessionManager;
 }
 
 #pragma mark - life cycle
@@ -55,26 +51,34 @@ signleton_m(ApiProxy)
 }
 
 #pragma mark - private methods 
-- (NSNumber *)callApiWithRequest:(NSURLRequest *)request success:(AXCallback)success fail:(AXCallback)fail{
+
+
+/**
+ * 这个函数存在的意义在于，如果将来要把AFNetwoking换掉，只要修改这个函数的实现即可
+ */
+- (NSNumber *)callApiWithRequest:(NSMutableURLRequest *)request success:(AXCallback)success fail:(AXCallback)fail{
     NSNumber *requestId = [self generateRequestId];
-    AFHTTPRequestOperation *httpRequestOpration = [self.operationManager HTTPRequestOperationWithRequest:request success:^(AFHTTPRequestOperation *operation, id responseObject) {
-        AIFURLResponse *response = [[AIFURLResponse alloc] initWithResponseString:operation.responseString
-                                                                        requestId:requestId
-                                                                          request:operation.request
-                                                                     responseData:operation.responseData
-                                                                          stataus:AIFURLResponseStatusSuccess];
-        success ? success(response) : nil;
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-        AFHTTPRequestOperation *storedOperation = self.dispatchTable[requestId];
-        AIFURLResponse *response = [[AIFURLResponse alloc] initWithResponseString:operation.responseString
-                                                                        requestId:requestId
-                                                                          request:operation.request
-                                                                     responseData:operation.responseData
+    
+    NSURLSessionDataTask *dataTask = [self.sessionManager dataTaskWithRequest:request completionHandler:^(NSURLResponse * _Nonnull response, id  _Nullable responseObject, NSError * _Nullable error) {
+        if (error) {
+            AIFURLResponse *response_0 = [[AIFURLResponse alloc] initWithResponseString:response.description
+                                                                            requestId:requestId
+                                                                                request:[NSURLRequest requestWithURL:response.URL]
+                                                                         responseData:responseObject
                                                                                 error:error];
-        fail ? fail(response) : nil;
+            PLog(@"请求有误==========================%@", error);
+            fail ? fail(response_0) : nil;
+        }else{
+            AIFURLResponse *response_0 = [[AIFURLResponse alloc] initWithResponseString:response.description
+                                                                            requestId:requestId
+                                                                              request:[NSURLRequest requestWithURL:response.URL]
+                                                                         responseData:responseObject
+                                                                              stataus:AIFURLResponseStatusSuccess];
+            success ? success(response_0) : nil;
+        }
     }];
-    self.dispatchTable[requestId] = httpRequestOpration;
-    [[self.operationManager operationQueue] addOperation:httpRequestOpration];
+    [dataTask resume];
+    self.dispatchTable[requestId] = dataTask;
     return requestId;
 }
 
@@ -90,4 +94,17 @@ signleton_m(ApiProxy)
     }
     return _recordedRequestId;
 }
+
+- (void)cancelRequestWithRequestId:(NSNumber *)requestID{
+    NSURLSessionDataTask *dataTask = self.dispatchTable[requestID];
+    [dataTask cancel];
+    [self.dispatchTable removeObjectForKey:requestID];
+}
+
+- (void)cancelRequestWithRequestIdList:(NSArray *)requestIDList{
+    for (NSNumber *requestId in requestIDList) {
+        [self cancelRequestWithRequestId:requestId];
+    }
+}
+
 @end
